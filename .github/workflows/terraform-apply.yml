@@ -67,6 +67,10 @@ jobs:
             echo "Waiting for SSM agent (attempt $i)..."
             sleep 10
           done
+          if [ "$STATUS" != "Online" ]; then
+            echo "SSM agent never came online"
+            exit 1
+          fi
 
       - name: Wait for Kafka provisioning to finish
         run: |
@@ -88,6 +92,10 @@ jobs:
             echo "Waiting for Kafka provisioning to finish (attempt $i, status=$STATUS)..."
             sleep 15
           done
+          if [ "$STATUS" != "Success" ]; then
+            echo "Kafka provisioning did not finish (/opt/kafka-ready not found)"
+            exit 1
+          fi
 
       - name: Set up Python for integration tests
         uses: actions/setup-python@v5
@@ -104,4 +112,5 @@ jobs:
         run: pytest tests/test_kafka_e2e.py -v -s
 
       - name: Terraform destroy
+        if: always()
         run: terraform destroy -input=false -auto-approve -no-color

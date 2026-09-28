@@ -26,8 +26,11 @@ mkdir -p /var/lib/kafka/data
 chown -R kafka:kafka "/opt/$${KAFKA_DIST}" /var/lib/kafka
 
 echo "=== Configuring Kafka (KRaft mode, single node) ==="
-PRIVATE_IP=$(curl -s http://169.254.169.254/latest/meta-data/local-ipv4)
-CLUSTER_ID=$(/opt/kafka/bin/kafka-storage.sh random-uuid)
+# IMDSv2 is enforced (http_tokens = "required"), so fetch a session token first.
+IMDS_TOKEN=$(curl -sf -X PUT http://169.254.169.254/latest/api/token -H "X-aws-ec2-metadata-token-ttl-seconds: 300")
+PRIVATE_IP=$(curl -sf -H "X-aws-ec2-metadata-token: $${IMDS_TOKEN}" http://169.254.169.254/latest/meta-data/local-ipv4)
+# Run as kafka so the /opt/kafka/logs dir that kafka-run-class.sh creates is owned by kafka, not root.
+CLUSTER_ID=$(sudo -u kafka /opt/kafka/bin/kafka-storage.sh random-uuid)
 
 cat > /opt/kafka/config/server.properties <<EOF
 process.roles=broker,controller
